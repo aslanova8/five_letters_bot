@@ -3,19 +3,38 @@ import random
 from aiogram import Bot, Dispatcher, executor
 from aiogram.types import Message
 
+
 BOT_TOKEN: str = '5915056188:AAHIMEHYEG_sxcQyNEfIc5IB_y0of-Zzf3Y'
 
 # Создаем объекты бота и диспетчера
 bot: Bot = Bot(BOT_TOKEN)
 dp: Dispatcher = Dispatcher(bot)
 
-#
-file_len_5 = open(f'words_len_5.txt', 'r', encoding='utf-8')
-L_WORDS_5: list = [line.strip() for line in file_len_5.readlines()]
-file_len_5.close()
+# Кортежи со словами
+words = list()
+for ind, length in enumerate(range(4, 9)):
+    with open('words/words_len_' + str(length), 'r', encoding="utf-8") as f:
+        words.append(tuple(line.strip() for line in f.readlines()))
 
 # Словарь, в котором будут храниться данные пользователей
 users: dict = {}
+
+
+def get_words_with_length(word_length: int) -> tuple:
+    """
+    Получить кортеж слов длины len.
+    word_length-4, т.к. минимальная длина угадываемого слова равна 4.
+    Параметры
+    ---------
+
+    word_length: int
+         Длина слова
+
+    Возвращаемое значение
+    ---------------------
+    tuple: кортеж слов длины len
+    """
+    return words[word_length-4]
 
 
 # Этот хэндлер будет срабатывать на команду "/start"
@@ -72,7 +91,7 @@ async def process_cancel_command(message: Message):
 async def process_positive_answer(message: Message):
     await message.answer('Ура!\n\nЯ загадал слово, попробуй угадать!')
     users["{0}".format(message.chat.id)]['in_game'] = True
-    users["{0}".format(message.chat.id)]['secret_word'] = random.choice(L_WORDS_5)
+    users["{0}".format(message.chat.id)]['secret_word'] = random.choice(get_words_with_length(5))
     users["{0}".format(message.chat.id)]['temp_attempts'] = users["{0}".format(message.chat.id)]["total_attempts"]
 
 
@@ -103,7 +122,7 @@ async def process_word_answer(message: Message):
         # Попытка
         else:
             # Проверка слова на существование
-            if str(message.text).upper() in L_WORDS_5:
+            if str(message.text).upper() in get_words_with_length(5):
 
                 # Шаблон для удаления букв в случае повторяющихся букв в слове-загадке
                 mistery: str = users["{0}".format(message.chat.id)][
@@ -126,7 +145,7 @@ async def process_word_answer(message: Message):
                 await message.answer(f' {w}', parse_mode="HTML")
                 users["{0}".format(message.chat.id)]['temp_attempts'] -= 1
             else:
-                await message.answer(f'Такого слова нет.'
+                await message.answer(f'Такого слова нет. '
                                      f'Осталось {users["{0}".format(message.chat.id)]["temp_attempts"]} попыток.')
 
         if users["{0}".format(message.chat.id)]['temp_attempts'] == 0:
