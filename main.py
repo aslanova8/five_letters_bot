@@ -4,7 +4,7 @@ import sqlite3
 from aiogram import Bot, Dispatcher, executor
 from aiogram.types import Message
 
-import db_operations as db
+import keyboards as kb
 
 BOT_TOKEN: str = '5915056188:AAHIMEHYEG_sxcQyNEfIc5IB_y0of-Zzf3Y'
 
@@ -13,13 +13,15 @@ def db_add_user(user_id: int, user_name: str, user_surname: str, username: str, 
                 total_attempts: int = 5):
     guessing = False
     played_games = 0
+    using_hints = False
     cursor.execute(f"SELECT COUNT(*) FROM users WHERE user_id={user_id}")
     user_exists = cursor.fetchall()[0][0]
     if not user_exists:
         cursor.execute("INSERT INTO users (user_id, user_name, user_surname, username, length_of_words, total_attempts,"
-                       "remaining_attempts, guessing, played_games, wins) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ",
+                       "remaining_attempts, guessing, played_games, wins, using_hints, hints_left) VALUES (?, ?, ?, "
+                       "?, ?, ?, ?, ?, ?, ?, ?, ?) ",
                        (user_id, user_name, user_surname, username, length_of_words, total_attempts,
-                        guessing, played_games, played_games, guessing))
+                        guessing, played_games, played_games, guessing, using_hints, 0))
         conn.commit()
 
 
@@ -53,6 +55,11 @@ def db_get_guessing(user_id: int) -> int:
     return cursor.fetchall()[0][0]
 
 
+def db_get_len(user_id: int) -> int:
+    cursor.execute("SELECT length_of_words FROM users WHERE user_id=?", (user_id,))
+    return cursor.fetchall()[0][0]
+
+
 def db_get_word(user_id: int) -> int:
     cursor.execute("SELECT word FROM users WHERE user_id=?", (user_id,))
     return cursor.fetchall()[0][0]
@@ -80,6 +87,18 @@ def db_set_played_games(user_id: int, value: bool) -> None:
 
 def db_set_word(user_id: int, value: bool) -> None:
     cursor.execute("UPDATE users SET word=? WHERE user_id=?", (value, user_id))
+    conn.commit()
+
+
+def db_change_len(user_id: int, value: bool) -> None:
+    cursor.execute("UPDATE users SET length_of_words=? WHERE user_id=?", (value, user_id))
+    conn.commit()
+
+
+def db_change_attempts(user_id: int, value: bool) -> None:
+    cursor.execute("UPDATE users SET total_attempts=? WHERE user_id=?", (value, user_id))
+    conn.commit()
+    cursor.execute("UPDATE users SET remaining_attempts=? WHERE user_id=?", (value, user_id))
     conn.commit()
 
 
@@ -116,12 +135,12 @@ async def process_start_command(message: Message):
 # Этот хэндлер будет срабатывать на команду "/help"
 @dp.message_handler(commands=['help'])
 async def process_help_command(message: Message):
-    await message.answer(f'Правила игры:\n\nЯ загадываю слово из '
-                         f'{db_get_length_of_words(message.from_user.id)} букв, '
-                         f'а вам нужно его угадать\nУ вас есть {db_get_total_attempts(message.from_user.id)}'
-                         f'попыток\n\nДоступные команды:\n/help - правила '
-                         f'игры и список команд\n/cancel - выйти из игры\n'
-                         f'/stat - посмотреть статистику\n\nДавай сыграем?')
+    await message.reply(f'Правила игры:\n\nЯ загадываю слово из '
+                        f'{db_get_length_of_words(message.from_user.id)} букв, '
+                        f'а Вам нужно его угадать\nУ вас есть {db_get_total_attempts(message.from_user.id)} '
+                        f'попыток\n\nДоступные команды:\n/help - правила '
+                        f'игры и список команд\n/cancel - выйти из игры\n'
+                        f'/stat - посмотреть статистику\n\nДавай сыграем?', reply_markup=kb.setting_kb)
 
 
 # Этот хэндлер будет срабатывать на команду "/stat"
@@ -139,7 +158,7 @@ async def process_cancel_command(message: Message):
                              'снова - напишите об этом')
         db_set_guessing(message.from_user.id, False)
     else:
-        await message.answer('А мы итак с вами не играем. '
+        await message.answer('А мы итак с Вами не играем. '
                              'Может, сыграем разок?')
 
 
@@ -147,22 +166,45 @@ async def process_cancel_command(message: Message):
 @dp.message_handler(lambda message: message.text.strip().upper() in ['ДА', 'ДАВАЙ', 'СЫГРАЕМ', 'ИГРА', 'ДАВАЙ ИГРАТЬ',
                                                                      'ИГРАТЬ', 'ХОЧУ ИГРАТЬ'])
 # TODO: Обрезать знаки препинания
-# TODO Система подсказок
 async def process_positive_answer(message: Message):
     await message.answer('Ура!\n\nЯ загадал слово, попробуй угадать!')
     db_set_guessing(message.from_user.id, True)
-    db_set_word(message.from_user.id, random.choice(words[5]))
+    db_set_word(message.from_user.id, random.choice(words[db_get_len(message.from_user.id)]))
     db_set_remaining_attempts(message.from_user.id, db_get_total_attempts(message.from_user.id))
 
 
 # Этот хэндлер будет срабатывать на отказ пользователя сыграть в игру
-@dp.message_handler(lambda message: message.text.upper() in ['НЕТ', 'НЕ', 'НЕ ХОЧУ', 'НЕ БУДУ', 'ВЫХОД'])
+@dp.message_handler(lambda message: message.text.upper() in ['СДАЮСЬ', 'НЕТ', 'НЕ', 'НЕ ХОЧУ', 'НЕ БУДУ', 'ВЫХОД'])
 async def process_negative_answer(message: Message):
     if db_get_guessing(message.from_user.id):
+        db_set_played_games(message.from_user.id, db_get_played_games(message.from_user.id) + 1)
+        db_set_guessing(message.from_user.id, False)
         await message.answer(f'Было загадано слово {db_get_word(message.from_user.id)}.'
                              f'\n\nЕсли захотите поиграть - просто напишите об этом!')
     else:
         await message.answer('Жаль :(\n\nЕсли захотите поиграть - просто напишите об этом')
+
+
+# Этот хендлер будет срабатывать на нажатие кнопки "Изменить длину слов"
+@dp.message_handler(lambda message: message.text == 'Изменить длину слов')
+async def process_choose_len(message: Message):
+    await message.reply('Выберите длину слова', reply_markup=kb.len_choosing_kb)
+
+
+# Этот хендлер будет срабатывать на нажатие кнопки "Добавить подсказки"
+@dp.message_handler(lambda message: message.text == 'Добавить подсказки')
+async def process_add_hints(message: Message):
+    # TODO
+    # TODO кол-во попыток = кол-во букв в слове
+    await message.answer('Подсказки добавлены')
+
+
+@dp.message_handler(lambda message: message.text.isdigit() and 4 <= int(message.text) <= 8)
+async def process_change_len(message: Message):
+    print(int(message.text))
+    db_change_len(message.from_user.id, int(message.text))
+    db_change_attempts(message.from_user.id, int(message.text))
+    await message.answer('Длина изменена. Играем дальше?')
 
 
 # Этот хэндлер будет срабатывать на отправку пользователем слов нужной длины
@@ -201,7 +243,7 @@ async def process_word_answer(message: Message):
 
                 await message.answer(f' {w}', parse_mode="HTML")
                 db_set_remaining_attempts(message.from_user.id,
-                                             db_get_remaining_attempts(message.from_user.id) - 1)
+                                          db_get_remaining_attempts(message.from_user.id) - 1)
 
             else:
                 await message.answer(f'Такого слова нет. '
