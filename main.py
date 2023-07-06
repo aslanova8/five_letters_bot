@@ -1,5 +1,6 @@
 import random
 import sqlite3
+import string
 
 from aiogram import Bot, Dispatcher, executor
 from aiogram.types import Message
@@ -146,7 +147,8 @@ async def process_help_command(message: Message):
 # Этот хэндлер будет срабатывать на команду "/stat"
 @dp.message_handler(commands=['stat'])
 async def process_stat_command(message: Message):
-    await message.answer(STATISTICS_TEXT % (db_get_played_games(message.from_user.id), db_get_wins(message.from_user.id)))
+    await message.answer(
+        STATISTICS_TEXT % (db_get_played_games(message.from_user.id), db_get_wins(message.from_user.id)))
 
 
 # Этот хэндлер будет срабатывать на команду "/cancel"
@@ -162,8 +164,8 @@ async def process_cancel_command(message: Message):
 
 
 # Этот хэндлер будет срабатывать на согласие пользователя сыграть в игру
-@dp.message_handler(lambda message: message.text.strip().upper() in AGREEMENT_WORDS)
-# TODO: Обрезать знаки препинания
+@dp.message_handler(lambda message: message.text.strip().upper().translate(str.maketrans('', '', string.punctuation)) \
+                                    in AGREEMENT_WORDS)
 async def process_positive_answer(message: Message):
     db_set_guessing(message.from_user.id, True)
     db_set_word(message.from_user.id, random.choice(words[db_get_len(message.from_user.id)]))
@@ -185,13 +187,13 @@ async def process_negative_answer(message: Message):
 
 
 # Этот хендлер будет срабатывать на нажатие кнопки "Изменить длину слов"
-@dp.message_handler(lambda message: message.text == 'Изменить длину слов')
+@dp.message_handler(lambda message: message.text == CHANGE_LEN_TEXT)
 async def process_choose_len(message: Message):
     await message.reply(CHOOSE_LEN_TEXT, reply_markup=kb.len_choosing_kb)
 
 
 # Этот хендлер будет срабатывать на нажатие кнопки "Добавить подсказки"
-@dp.message_handler(lambda message: message.text == 'Добавить подсказки')
+@dp.message_handler(lambda message: message.text == ADD_HINTS_TEXT)
 async def process_add_hints(message: Message):
     db_set_hints(message.from_user.id, 1)
     # TODO добавить удаление подсказок
@@ -236,7 +238,7 @@ async def process_word_answer(message: Message):
         # Попытка
         else:
             # Проверка слова на существование
-            if str(message.text).upper() in words[5]:
+            if str(message.text).upper() in words[db_get_len(message.from_user.id)]:
 
                 # Шаблон для удаления букв в случае повторяющихся букв в слове-загадке
                 mistery: str = db_get_word(message.from_user.id)
