@@ -30,6 +30,11 @@ def db_get_length_of_words(user_id: int) -> int:
     return cursor.fetchall()[0][0]
 
 
+def db_get_hints_left(user_id: int) -> int:
+    cursor.execute("SELECT hints_left FROM users WHERE user_id=?", (user_id,))
+    return cursor.fetchall()[0][0]
+
+
 def db_get_total_attempts(user_id: int) -> int:
     cursor.execute("SELECT total_attempts FROM users WHERE user_id=?", (user_id,))
     return cursor.fetchall()[0][0]
@@ -60,7 +65,7 @@ def db_get_len(user_id: int) -> int:
     return cursor.fetchall()[0][0]
 
 
-def db_get_word(user_id: int) -> int:
+def db_get_word(user_id: int) -> str:
     cursor.execute("SELECT word FROM users WHERE user_id=?", (user_id,))
     return cursor.fetchall()[0][0]
 
@@ -75,36 +80,41 @@ def db_set_guessing(user_id: int, value: bool) -> None:
     conn.commit()
 
 
-def db_set_wins(user_id: int, value: bool) -> None:
+def db_set_wins(user_id: int, value: int) -> None:
     cursor.execute("UPDATE users SET wins=? WHERE user_id=?", (value, user_id))
     conn.commit()
 
 
-def db_set_played_games(user_id: int, value: bool) -> None:
+def db_set_played_games(user_id: int, value: int) -> None:
     cursor.execute("UPDATE users SET played_games=? WHERE user_id=?", (value, user_id))
     conn.commit()
 
 
-def db_set_word(user_id: int, value: bool) -> None:
+def db_set_word(user_id: int, value: str) -> None:
     cursor.execute("UPDATE users SET word=? WHERE user_id=?", (value, user_id))
     conn.commit()
 
 
-def db_change_len(user_id: int, value: bool) -> None:
+def db_change_len(user_id: int, value: int) -> None:
     cursor.execute("UPDATE users SET length_of_words=? WHERE user_id=?", (value, user_id))
     conn.commit()
 
 
-def db_change_attempts(user_id: int, value: bool) -> None:
+def db_change_attempts(user_id: int, value: int) -> None:
     cursor.execute("UPDATE users SET total_attempts=? WHERE user_id=?", (value, user_id))
     conn.commit()
     cursor.execute("UPDATE users SET remaining_attempts=? WHERE user_id=?", (value, user_id))
     conn.commit()
 
 
-def db_set_hints(user_id: int, value: bool) -> None:
+def db_set_hints(user_id: int, value: int) -> None:
     cursor.execute("UPDATE users SET using_hints=? WHERE user_id=?", (value, user_id))
     conn.commit()
+    cursor.execute("UPDATE users SET hints_left=? WHERE user_id=?", (value, user_id))
+    conn.commit()
+
+
+def db_set_hints_left(user_id: int, value: int) -> None:
     cursor.execute("UPDATE users SET hints_left=? WHERE user_id=?", (value, user_id))
     conn.commit()
 
@@ -164,13 +174,13 @@ async def process_cancel_command(message: Message):
 
 
 # Этот хэндлер будет срабатывать на согласие пользователя сыграть в игру
-@dp.message_handler(lambda message: message.text.strip().upper().translate(str.maketrans('', '', string.punctuation)) \
-                                    in AGREEMENT_WORDS)
+@dp.message_handler(lambda message: message.text.strip().upper()
+                    .translate(str.maketrans('', '', string.punctuation)) in AGREEMENT_WORDS)
 async def process_positive_answer(message: Message):
     db_set_guessing(message.from_user.id, True)
     db_set_word(message.from_user.id, random.choice(words[db_get_len(message.from_user.id)]))
     db_set_remaining_attempts(message.from_user.id, db_get_total_attempts(message.from_user.id))
-
+    db_set_hints_left(message.from_user.id, 1)
     await message.answer(LETS_GUESS_TEXT)
 
 
@@ -205,7 +215,6 @@ async def process_add_hints(message: Message):
 @dp.message_handler(lambda message: message.text.strip().upper() in HINT_WORDS)
 async def process_hint(message: Message):
     if db_get_guessing(message.from_user.id):
-        mistery = db_get_word(message.from_user.id)
         await message.reply(CHOOSE_HINT_TEXT, reply_markup=kb.hint_kb)
 
     else:
@@ -215,10 +224,19 @@ async def process_hint(message: Message):
 # Этот хендлер принимает число - длину слова
 @dp.message_handler(lambda message: message.text.isdigit() and 4 <= int(message.text) <= 8)
 async def process_change_len(message: Message):
-    print(int(message.text))
     db_change_len(message.from_user.id, int(message.text))
     db_change_attempts(message.from_user.id, int(message.text))
     await message.answer(LEN_CHANGED_TEXT)
+
+
+@dp.message_handler(lambda message: message.text == OPEN_VOWELS_TEXT)
+async def process_open_vowels(message: Message):
+    db_set_hints_left(message.from_user.id, db_get_hints_left(message.from_user.id) - 1)
+    mistery = list(db_get_word(message.from_user.id))
+    for index, letter in enumerate(mistery):
+        if letter not in VOWELS:
+            mistery[index] = '*'
+    await message.answer(''.join(mistery))
 
 
 # Этот хэндлер будет срабатывать на отправку пользователем слов нужной длины

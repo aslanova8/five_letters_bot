@@ -1,5 +1,7 @@
 BOT_TOKEN: str = '5915056188:AAHIMEHYEG_sxcQyNEfIc5IB_y0of-Zzf3Y'
 
+VOWELS = 'АУЕОЭЮЫИЯЁ'
+
 AGREEMENT_WORDS: list[str] = ['ДА', 'ДАВАЙ', 'СЫГРАЕМ', 'ИГРА', 'ДАВАЙ ИГРАТЬ', 'ИГРАТЬ', 'ХОЧУ ИГРАТЬ']
 
 HINT_WORDS: list[str] = ['ПОДСКАЗКА', 'ХОЧУ ПОДСКАЗКУ', 'ДАЙ ПОДСКАЗКУ', 'ПОДСКАЖИ']
