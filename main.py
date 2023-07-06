@@ -206,11 +206,10 @@ async def process_add_hints(message: Message):
 async def process_hint(message: Message):
     if db_get_guessing(message.from_user.id):
         mistery = db_get_word(message.from_user.id)
-        # TODO подсказки 1 открыть определенную букву 2 открыть букву по номеру 3 открыть гласные
-        await message.answer('')
+        await message.reply(CHOOSE_HINT_TEXT, reply_markup=kb.hint_kb)
+
     else:
-        # TODO сообщение
-        await message.answer('')
+        await message.answer(NOT_A_WORD_OUT_GAME_TEXT)
 
 
 # Этот хендлер принимает число - длину слова
