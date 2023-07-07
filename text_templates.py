@@ -52,6 +52,8 @@ NOT_A_WORD_OUT_GAME_TEXT: str = 'Я довольно ограниченный б
 
 OPEN_VOWELS_TEXT: str = 'Открыть гласные'
 
+WHAT_PLACE_TEXT: str = 'Какую по счету букву открыть?'
+
 OPEN_SPECIFIC_LETTER_TEXT: str = 'Открыть определенную букву'
 
 OPEN_SPECIFIC_LETTER_REQUEST_TEXT: str = 'Пришлите букву'

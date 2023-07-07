@@ -245,11 +245,27 @@ async def process_open_letter_request(message: Message):
 
 
 @dp.message_handler(lambda message: message.text.isalpha() and len(message.text) == 1)
-async def process_open_vowels(message: Message):
+async def process_letter(message: Message):
     db_set_hints_left(message.from_user.id, db_get_hints_left(message.from_user.id) - 1)
     mistery = list(db_get_word(message.from_user.id))
     for index, letter in enumerate(mistery):
         if letter != message.text:
+            mistery[index] = '*'
+    await message.answer(''.join(mistery))
+
+
+@dp.message_handler(lambda message: message.text == OPEN_LETTER_IN_CERTAIN_PLACE_TEXT)
+async def process_open_letter_place_request(message: Message):
+    await message.answer(WHAT_PLACE_TEXT)
+
+
+@dp.message_handler(lambda message: message.text.isdigit() and 1 <= int(message.text) <= 10)
+#TODO верхняя граница
+async def process_open_place(message: Message):
+    db_set_hints_left(message.from_user.id, db_get_hints_left(message.from_user.id) - 1)
+    mistery = list(db_get_word(message.from_user.id))
+    for index, letter in enumerate(mistery):
+        if index + 1 != int(message.text):
             mistery[index] = '*'
     await message.answer(''.join(mistery))
 
