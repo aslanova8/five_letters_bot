@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup as bs
 
-URL_TEMPLATE = "https://kupidonia.ru/spisok/spisok-suschestvitelnyh-russkogo-jazyka/bukva/"
+URL_TEMPLATE = "http://nskhuman.ru/unislov/suschestv.php?nlet1=1&nlet2=2"
 FILE_NAME = "test.csv"
 
 
@@ -26,12 +26,13 @@ def parse(letter: str, length: int, url: str = URL_TEMPLATE) -> tuple:
         Кортеж слов на букву letter длины length
     """
     # Корректируем ссылку для текущей буквы
-    r = requests.get(url + letter)
+    r = requests.get(url)
     soup = bs(r.text, "html.parser")
-    words = soup.find_all('div', class_='position_title')
+    words = soup.find_all('a', class_='position_title')
 
+    print(words)
     # Обрезаем переносы на другую строку и пробелы
-    words = tuple(filter(lambda x:  len(x) == length, tuple(map(lambda word: word.text.strip().upper(), words))))
+    # words = tuple(filter(lambda x:  len(x) == length, tuple(map(lambda word: word.text.strip().upper(), words))))
 
     return words
 
@@ -80,8 +81,9 @@ def write_to_txt(length, url: str = URL_TEMPLATE) -> None:
         fin.write('\n'.join(list(get_tuple_const_length(length, url))))
 
 
-write_to_txt(4)
-write_to_txt(5)
-write_to_txt(6)
-write_to_txt(7)
-write_to_txt(8)
+# write_to_txt(4)
+# write_to_txt(5)
+# write_to_txt(6)
+# write_to_txt(7)
+# write_to_txt(8)
+parse('F', 2)

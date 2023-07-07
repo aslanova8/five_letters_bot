@@ -54,4 +54,6 @@ OPEN_VOWELS_TEXT: str = 'Открыть гласные'
 
 OPEN_SPECIFIC_LETTER_TEXT: str = 'Открыть определенную букву'
 
+OPEN_SPECIFIC_LETTER_REQUEST_TEXT: str = 'Пришлите букву'
+
 OPEN_LETTER_IN_CERTAIN_PLACE_TEXT: str = 'Открыть букву на определенном месте'

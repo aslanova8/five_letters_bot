@@ -239,6 +239,21 @@ async def process_open_vowels(message: Message):
     await message.answer(''.join(mistery))
 
 
+@dp.message_handler(lambda message: message.text == OPEN_SPECIFIC_LETTER_TEXT)
+async def process_open_letter_request(message: Message):
+    await message.answer(OPEN_SPECIFIC_LETTER_REQUEST_TEXT)
+
+
+@dp.message_handler(lambda message: message.text.isalpha() and len(message.text) == 1)
+async def process_open_vowels(message: Message):
+    db_set_hints_left(message.from_user.id, db_get_hints_left(message.from_user.id) - 1)
+    mistery = list(db_get_word(message.from_user.id))
+    for index, letter in enumerate(mistery):
+        if letter != message.text:
+            mistery[index] = '*'
+    await message.answer(''.join(mistery))
+
+
 # Этот хэндлер будет срабатывать на отправку пользователем слов нужной длины
 @dp.message_handler(
     lambda message: message.text.isalpha() and len(message.text) == db_get_length_of_words(message.from_user.id))
