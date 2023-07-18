@@ -1,6 +1,8 @@
 import random
 import sqlite3
 import string
+import asyncio
+import time
 
 from aiogram import Bot, Dispatcher, executor
 from aiogram.types import Message
@@ -28,6 +30,11 @@ def db_add_user(user_id: int, user_name: str, user_surname: str, username: str, 
 def db_get_length_of_words(user_id: int) -> int:
     cursor.execute("SELECT length_of_words FROM users WHERE user_id=?", (user_id,))
     return cursor.fetchall()[0][0]
+
+
+def db_get_users():
+    cursor.execute("SELECT user_id FROM users")
+    return cursor.fetchall()
 
 
 def db_get_hints_left(user_id: int) -> int:
@@ -121,7 +128,8 @@ def db_set_hints_left(user_id: int, value: int) -> None:
 
 # Создаем объекты бота и диспетчера
 bot: Bot = Bot(BOT_TOKEN)
-dp: Dispatcher = Dispatcher(bot)
+loop = asyncio.get_event_loop()
+dp: Dispatcher = Dispatcher(bot, loop=loop)
 
 # Подключение к бд
 conn = sqlite3.connect('database/game_db.db', check_same_thread=False)
@@ -259,8 +267,9 @@ async def process_open_letter_place_request(message: Message):
     await message.answer(WHAT_PLACE_TEXT)
 
 
-@dp.message_handler(lambda message: message.text.isdigit() and 1 <= int(message.text) <= 10)
-#TODO верхняя граница
+@dp.message_handler(
+    lambda message: message.text.isdigit() and 1 <= int(message.text) <= db_get_length_of_words(message.from_user.id))
+# TODO верхняя граница
 async def process_open_place(message: Message):
     db_set_hints_left(message.from_user.id, db_get_hints_left(message.from_user.id) - 1)
     mistery = list(db_get_word(message.from_user.id))
@@ -330,5 +339,15 @@ async def process_other_text_answers(message: Message):
         await message.answer(NOT_A_WORD_OUT_GAME_TEXT)
 
 
+async def promotion_message():
+    while True:
+        users = db_get_users()
+        print(users)
+        for (user_id,) in users:
+            await bot.send_message(chat_id=user_id, text=PROMOTION_TEXT)
+        time.sleep(60 * 60 * 6)
+
+
 if __name__ == '__main__':
-    executor.start_polling(dp)
+    dp.loop.create_task(promotion_message())
+    executor.start_polling(dp, skip_updates=True)
