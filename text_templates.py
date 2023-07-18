@@ -60,4 +60,6 @@ OPEN_SPECIFIC_LETTER_REQUEST_TEXT: str = 'Пришлите букву'
 
 PROMOTION_TEXT: str = 'Тебя давно не было в Wordle!'
 
+NO_HINT_TEXT: str = 'Подсказок больше нет'
+
 OPEN_LETTER_IN_CERTAIN_PLACE_TEXT: str = 'Открыть букву на определенном месте'

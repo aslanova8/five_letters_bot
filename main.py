@@ -2,7 +2,6 @@ import random
 import sqlite3
 import string
 import asyncio
-import time
 
 from aiogram import Bot, Dispatcher, executor
 from aiogram.types import Message
@@ -222,9 +221,13 @@ async def process_add_hints(message: Message):
 # Этот хендлер будет срабатывать на запрос подсказки
 @dp.message_handler(lambda message: message.text.strip().upper() in HINT_WORDS)
 async def process_hint(message: Message):
-    if db_get_guessing(message.from_user.id):
+    # Мы играем и подсказки остались
+    if db_get_guessing(message.from_user.id) and db_get_hints_left(message.from_user.id):
         await message.reply(CHOOSE_HINT_TEXT, reply_markup=kb.hint_kb)
-
+    # Мы играем, но подсказок нет
+    elif db_get_guessing(message.from_user.id) and not db_get_hints_left(message.from_user.id):
+        await message.reply(NO_HINT_TEXT, reply_markup=kb.hint_kb)
+    # Мы не играем
     else:
         await message.answer(NOT_A_WORD_OUT_GAME_TEXT)
 
@@ -269,7 +272,6 @@ async def process_open_letter_place_request(message: Message):
 
 @dp.message_handler(
     lambda message: message.text.isdigit() and 1 <= int(message.text) <= db_get_length_of_words(message.from_user.id))
-# TODO верхняя граница
 async def process_open_place(message: Message):
     db_set_hints_left(message.from_user.id, db_get_hints_left(message.from_user.id) - 1)
     mistery = list(db_get_word(message.from_user.id))
@@ -342,11 +344,9 @@ async def process_other_text_answers(message: Message):
 async def promotion_message():
     while True:
         users = db_get_users()
-        print(users)
         for (user_id,) in users:
             await bot.send_message(chat_id=user_id, text=PROMOTION_TEXT)
-        time.sleep(60 * 60 * 6)
-
+        await asyncio.sleep(60 * 60 * 6)
 
 if __name__ == '__main__':
     dp.loop.create_task(promotion_message())
