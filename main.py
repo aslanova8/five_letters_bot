@@ -15,6 +15,7 @@ def db_add_user(user_id: int, user_name: str, user_surname: str, username: str, 
     guessing = False
     played_games = 0
     using_hints = False
+    # TODO вынести в функцию
     cursor.execute(f"SELECT COUNT(*) FROM users WHERE user_id={user_id}")
     user_exists = cursor.fetchall()[0][0]
     if not user_exists:
