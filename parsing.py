@@ -25,8 +25,8 @@ def parse():
     Спарсить с сайта со словарем слова
     """
     # Корректируем ссылку для текущей буквы
-    counter = 1
-    for letter_number in range(1, 30):
+    counter = 16309
+    for letter_number in range(14, 30):
 
         # Изменяем ссылку под букву
         r = requests.get(URL_TEMPLATE % letter_number)

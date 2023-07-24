@@ -1,4 +1,3 @@
-import random
 import sqlite3
 import string
 import asyncio
@@ -40,6 +39,16 @@ def db_get_users():
 def db_get_hints_left(user_id: int) -> int:
     cursor.execute("SELECT hints_left FROM users WHERE user_id=?", (user_id,))
     return cursor.fetchall()[0][0]
+
+
+def db_get_random_word(length: int) -> str:
+    cursor.execute("SELECT word FROM words WHERE length=? ORDER BY RANDOM() LIMIT 1", (length,))
+    return cursor.fetchall()[0]
+
+
+def db_get_words_with_len(length: int) -> list[tuple]:
+    cursor.execute("SELECT word FROM words WHERE length=?", (length,))
+    return cursor.fetchall()
 
 
 def db_get_total_attempts(user_id: int) -> int:
@@ -135,12 +144,6 @@ dp: Dispatcher = Dispatcher(bot, loop=loop)
 conn = sqlite3.connect('database/game_db.db', check_same_thread=False)
 cursor = conn.cursor()
 
-# Слова
-words = [tuple() for _ in range(9)]
-for length in range(4, 9):
-    with open(f'words/words_len_{length}.txt', 'r', encoding='utf-8') as f:
-        words[length] = words[length] + tuple(line.strip() for line in f.readlines())
-
 
 # Этот хэндлер будет срабатывать на команду "/start"
 @dp.message_handler(commands=['start'])
@@ -186,7 +189,7 @@ async def process_cancel_command(message: Message):
                     .translate(str.maketrans('', '', string.punctuation)) in AGREEMENT_WORDS)
 async def process_positive_answer(message: Message):
     db_set_guessing(message.from_user.id, True)
-    db_set_word(message.from_user.id, random.choice(words[db_get_len(message.from_user.id)]))
+    db_set_word(message.from_user.id, db_get_random_word(db_get_len(message.from_user.id)))
     db_set_remaining_attempts(message.from_user.id, db_get_total_attempts(message.from_user.id))
     db_set_hints_left(message.from_user.id, 1)
     await message.answer(LETS_GUESS_TEXT)
@@ -215,7 +218,6 @@ async def process_choose_len(message: Message):
 async def process_add_hints(message: Message):
     db_set_hints(message.from_user.id, 1)
     # TODO добавить удаление подсказок
-    # TODO добавить слова в бд
     await message.answer(HINTS_ADDED_TEXT)
 
 
@@ -241,6 +243,7 @@ async def process_change_len(message: Message):
     await message.answer(LEN_CHANGED_TEXT)
 
 
+# Этот хендлер принимает запрос открыть гласные
 @dp.message_handler(lambda message: message.text == OPEN_VOWELS_TEXT)
 async def process_open_vowels(message: Message):
     db_set_hints_left(message.from_user.id, db_get_hints_left(message.from_user.id) - 1)
@@ -297,29 +300,30 @@ async def process_word_answer(message: Message):
 
         # Попытка
         else:
+
             # Проверка слова на существование
-            if str(message.text).upper() in words[db_get_len(message.from_user.id)]:
+            if str(message.text).upper() in [tur[0] for tur in db_get_words_with_len(db_get_len(message.from_user.id))]:
 
                 # Шаблон для удаления букв в случае повторяющихся букв в слове-загадке
                 mistery: str = db_get_word(message.from_user.id)
 
                 # Слово-ответ с подсветкой
-                # TODO переименовать
-                w = ''
+                # TODO переименовать word_answer
+                word_answer = ''
                 for letter1, letter2 in zip(db_get_word(message.from_user.id), str(message.text).upper()):
                     if letter1 == letter2:
-                        w += '<u>' + letter2.upper() + '</u>'
+                        word_answer += '<u>' + letter2.upper() + '</u>'
                         mistery = mistery.replace(letter2.upper(), '', 1)
                     elif letter2 in mistery and str(message.text).upper()[mistery.index(letter2)] != \
                             db_get_word(message.from_user.id)[mistery.index(letter2)]:
-                        w += '<b>' + letter2.upper() + '</b>'
+                        word_answer += '<b>' + letter2.upper() + '</b>'
                         mistery = mistery.replace(letter2.upper(), '', 1)
                     else:
-                        w += '<s>' + letter2.upper() + '</s>'
+                        word_answer += '<s>' + letter2.upper() + '</s>'
 
                 db_set_remaining_attempts(message.from_user.id,
                                           db_get_remaining_attempts(message.from_user.id) - 1)
-                await message.answer(f' {w}', parse_mode="HTML")
+                await message.answer(f' {word_answer}', parse_mode="HTML")
 
             else:
                 await message.answer(MISTAKE_TEXT % db_get_remaining_attempts(message.from_user.id))
